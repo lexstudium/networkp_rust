@@ -1,7 +1,7 @@
 # Week 1
 
 | Member | Pages | Reference |
-| --- | --- | --- |
+| --- | --- | :---: |
 | 조성진 | 5~15  | [PPT](w1/minjun/w1.pptx) |
 | 신현민 | 16~26 | [Blog](https://karatus.tistory.com/199) |
 |   민준 | 27~38 |  |
