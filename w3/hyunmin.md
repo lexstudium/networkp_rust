@@ -93,6 +93,7 @@ pub trait Deserialize<'de>: Sized {
 그리고 `Deserialize` trait에서는 `Deserializer` trait과 `Visitor` trait을 통해 실구현한다. 두 traits 사이의 관계는 다음과 같다.
 
 > Deserializer - input data를 다양한 data types으로 mapping
+> 
 > Visitor		    - input data의 타입에 따라 실제 처리 부분의 구현 (Deserializer 함수 내부에서 호출됨)
 
 * `Visitor` trait
