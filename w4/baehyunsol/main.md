@@ -2,13 +2,13 @@
 
 [Hyper](https://github.com/hyperium/hyper) is an HTTP framework written in Rust.
 
-![benchmark](benchmark.jpg)
-![benchmark2](benchmark2.jpg)
+![benchmark](benchmark.JPG)
+![benchmark2](benchmark2.JPG)
 
 그림에서 보시면 243개의 웹 프레임워크 중 최상위권에 있는 것을 보실 수 있습니다. 야무지네요. 상위 20개의 프레임워크 중 Rust로 쓰인 프레임워크가 6개나 되는 것도 확인하실 수 있습니다.
 
-![old](책버전.jpg)
-![new](curr버전.jpg)
+![old](책버전.JPG)
+![new](curr버전.JPG)
 
 다만 아쉽게도 책에서 사용한 버전인 0.11.7이 너무 예전 버전이라 책 내용보다는 공식 문서의 내용을 위주로 서술하였습니다.
 
