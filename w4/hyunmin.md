@@ -134,5 +134,5 @@ openssl = "0.10"
 
 - [reqwest doc](https://docs.rs/reqwest/0.11.9/reqwest/)
 - [tokio doc](https://docs.rs/tokio/1.15.0/tokio/)
-- [Making HTTP requests in Rust with Reqwest]https://blog.logrocket.com/making-http-requests-rust-reqwest/
-- [Rust의 async/await와 Future]https://showx123.tistory.com/85
+- [Making HTTP requests in Rust with Reqwest](https://blog.logrocket.com/making-http-requests-rust-reqwest/)
+- [Rust의 async/await와 Future](https://showx123.tistory.com/85)
