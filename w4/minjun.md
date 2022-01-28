@@ -36,6 +36,390 @@
 - gRPC는 protocol buffer를 쓴다. 
 - message는 HTTP/2, TCP/IP로 전송
 
+# 최근 버전들
+
+### ref
+
+https://medium.com/geekculture/quick-start-to-grpc-using-rust-c655785fc6f4
+
+### grpc_example
+
+- uber같은 프로그램을 만든다.
+- client는 name과 location을 가지고, client가 server에 요청하면 server가 근처에 있는 cab들을 알려준다.
+- 이전버전으로 고정해야지만 돌아감(뒤에서 확인)
+
+```bash
+.
+├── Cargo.lock
+├── Cargo.toml
+├── build.rs
+├── proto
+│   └── hello.proto
+└── src
+    ├── client.rs
+    ├── lib.rs
+    └── server.rs
+```
+
+
+
+### Cargo.toml
+
+```toml
+[package]
+name = "learning-grpc"
+version = "0.1.0"
+authors = ["qubit-finance <lex.studium.12@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+path = "./src/lib.rs"
+
+[[bin]]
+name="server"
+path="./src/server.rs"
+
+[[bin]]
+name="client"
+path="./src/client.rs"
+
+[dependencies]
+tonic = "0.5"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+prost = "0.8"
+
+[build-dependencies]
+tonic-build = "0.5"
+
+```
+
+
+
+### hello.proto
+### proto
+
+- 시작은 IDP spec을 명시한다.
+
+- ```protobuf
+  syntax = "proto3";
+  ```
+
+- package를 선언한다. 그러면, 생성된 코드는 rust module Hello
+
+- ```proto
+  package Hello;
+  ```
+
+
+
+- Service를 정의하고, rpc 함수를 정의한다.
+
+- ```protobuf
+  service Hello {
+      rpc HelloWorld(HelloRequest) returns (HelloResponse) {}
+      rpc record_cab_location(CabLocationRequest) returns (CabLocationResponse);
+      rpc get_cabs(GetCabRequest) returns (GetCabResponse);
+  }
+  ```
+
+  
+
+- 관련된 message를 정의한다. 여기서 data 종류랑 개수를 명시한다.
+
+```protobuf
+syntax = "proto3";
+
+package Hello;
+
+service Hello {
+    rpc HelloWorld(HelloRequest) returns (HelloResponse) {}
+    rpc record_cab_location(CabLocationRequest) returns (CabLocationResponse);
+    rpc get_cabs(GetCabRequest) returns (GetCabResponse);
+}
+
+message HelloRequest {}
+message HelloResponse {
+    string message = 1;
+}
+message CabLocationRequest {
+    string name = 1;
+    Location location = 2;
+}
+
+message CabLocationResponse {
+    bool accepted = 1;
+}
+
+message GetCabRequest {
+    Location location = 1;
+}
+
+message GetCabResponse {
+    repeated Cab cabs = 1;
+}
+
+message Cab {
+    string name = 1;
+    Location location = 2;
+}
+
+message Location {
+    float latitude = 1;
+    float longitude = 2;
+}
+
+```
+
+
+
+### build.rs
+
+```rust
+fn main() {
+    let proto_file = "./proto/hello.proto"; 
+
+    tonic_build::configure()
+        .build_server(true)
+        .compile(&[proto_file], &["."])
+        .unwrap_or_else(|e| panic!("protobuf compile error: {}", e));
+  
+        println!("cargo:rerun-if-changed={}", proto_file);
+}
+```
+
+
+
+## tonic 문법 기초
+
+### Response
+
+```rust
+let response = HelloResponse { message: "Hello, World!".to_string() };
+        Ok(Response::new(response))
+```
+
+- 그냥 struct 만들고 new 하면된다.
+
+### Request
+
+```rust
+let req = req.into_inner(); // private 접근 가능해짐.
+let location = req.location.unwrap();
+```
+
+- message는 Some으로 감싸져 있음 (Option임)
+
+### struct
+
+```rust
+let location = Location{longitude: 70.1, latitude: 40.1};
+let request = Request::new(CabLocationRequest{name: "hi".to_string(), location: Some(location)});
+```
+
+- message는 Some으로 감싸줘야한다.
+
+### repeated
+
+```rust
+let one = Cab{name: "Limo".to_string(), location: Some(location.clone())};
+let two = Cab{name: "Merc".to_string(), location: Some(location.clone())};
+let vec = vec![one, two];
+let response = GetCabResponse { cabs: vec };
+```
+
+- repeated는 그냥 vec으로 주면 된다.
+
+
+
+## tonic service 구현
+
+### impl
+
+```rust
+#[derive(Default)]
+pub struct MyServer {}
+
+#[tonic::async_trait]
+impl Hello for MyServer {
+    async fn hello_world(&self, _ : Request<HelloRequest>) -> Result<Response<HelloResponse>, Status> {
+        let response = HelloResponse { message: "Hello, World!".to_string() };
+        Ok(Response::new(response))
+    }
+}
+```
+
+- rpc 구조에 맞게 request랑 response안에 struct 를 넣어주면 된다.
+
+
+
+
+## server.rs
+
+- tonic과
+- proto로 만든 녀석들을 가져온다.
+
+```rust
+use tonic::transport::Server;
+use tonic::{Request, Response, Status};
+
+use learning_grpc::hello; // proto
+use hello::hello_server::{HelloServer, Hello}; // service
+use hello::{HelloRequest, HelloResponse};
+```
+
+
+
+#### main
+
+```rust
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = "0.0.0.0:50051".parse()?;
+
+    let hello_server = MyServer::default();
+    Server::builder()
+        .add_service(HelloServer::new(hello_server))
+        .serve(addr)
+        .await?;
+
+    Ok(())
+}
+```
+
+- macro를 이용해서 바로 runtime에 진입
+
+- builder()->Self
+
+- ```rust
+  pub fn add_service<S>(&mut self, svc: S) -> Router<S, Unimplemented, L>
+  where
+      S: Service<Request<Body>, Response = Response<BoxBody>> + NamedService + Clone + Send + 'static,
+      S::Future: Send + 'static,
+      S::Error: Into<Box<dyn Error + Send + Sync>> + Send,
+      L: Clone, 
+  // Create a router with the S typed service as the first service.
+  
+  //This will clone the Server builder and create a router that will route around different services.
+  
+  ```
+
+
+
+
+
+```rust
+use tonic::transport::Server;
+use tonic::{Request, Response, Status};
+
+use learning_grpc::hello;
+use hello::hello_server::{HelloServer, Hello};
+use hello::{HelloRequest, HelloResponse, CabLocationRequest, CabLocationResponse,
+    GetCabRequest, GetCabResponse, Cab, Location};
+
+
+#[derive(Default)]
+pub struct MyServer {}
+
+#[tonic::async_trait]
+impl Hello for MyServer {
+    async fn hello_world(&self, _ : Request<HelloRequest>) -> Result<Response<HelloResponse>, Status> {
+        let response = HelloResponse { message: "Hello, World!".to_string() };
+        Ok(Response::new(response))
+    }
+    async fn record_cab_location(&self, req : Request<CabLocationRequest>) -> Result<Response<CabLocationResponse>, Status> {
+        let response = CabLocationResponse { 
+                        accepted: true};
+        let req = req.into_inner();
+        let location = req.location.unwrap();
+        let latitude = location.latitude;
+        let longitude = location.longitude;
+        println!("Recorded cab {} at {}, {}", req.name, latitude, longitude);
+        Ok(Response::new(response))
+    }
+    async fn get_cabs(&self, _ : Request<GetCabRequest>) -> Result<Response<GetCabResponse>, Status> {
+        
+        let location = Location{longitude:70.1, latitude:40.1};
+        let one = Cab{name: "Limo".to_string(), location: Some(location.clone())};
+        let two = Cab{name: "Merc".to_string(), location: Some(location.clone())};
+        let vec = vec![one, two];
+        let response = GetCabResponse { cabs: vec };
+        Ok(Response::new(response))
+    }
+    
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = "0.0.0.0:50051".parse()?;
+
+    let hello_server = MyServer::default();
+    Server::builder()
+        .add_service(HelloServer::new(hello_server))
+        .serve(addr)
+        .await?;
+
+    Ok(())
+}
+```
+
+
+
+
+
+### client
+
+```rust
+use tonic::transport::Endpoint;
+use tonic::Request;
+
+use learning_grpc::hello;
+use hello::hello_client::HelloClient;
+use hello::{HelloRequest, HelloResponse, CabLocationRequest, CabLocationResponse,
+    GetCabRequest, GetCabResponse, Cab, Location};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let addr = Endpoint::from_static("https://127.0.0.1:50051");
+    
+    let mut client  = HelloClient::connect(addr).await?;
+    let request = Request::new(HelloRequest{});
+    let response = client.hello_world(request).await?;
+    println!("response: {}", response.into_inner().message);
+
+    let location = Location{longitude: 70.1, latitude: 40.1};
+    let request = Request::new(CabLocationRequest{name: "hi".to_string(), location: Some(location.clone())});
+    let response = client.record_cab_location(request).await?;
+    println!("response: {}", response.into_inner().accepted);
+
+    let request = Request::new(GetCabRequest{location: Some(location.clone())});
+    let response = client.get_cabs(request).await?;
+    println!("response: {:?}", response.into_inner().cabs);
+    Ok(())
+}
+```
+
+
+
+```bash
+response: Hello, World!
+response: true
+response: [Cab { name: "Limo", location: Some(Location { latitude: 40.1, longitude: 70.1 }) }, Cab { name: "Merc", location: Some(Location { latitude: 40.1, longitude: 70.1 }) }]
+```
+
+
+
+```bash
+Recorded cab hi at 40.1, 70.1
+```
+
+
+
+
+
+# 책의 내용
+
 
 
 ### grpc_example
@@ -92,68 +476,7 @@ curl -Lo https://github.com/protocolbuffers/protobuf/releases/download/v3.19.3/p
 
 
 
-### proto
 
-- 시작은 IDP spec을 명시한다.
-
-- ```protobuf
-  syntax = "proto3";
-  ```
-
-- package를 선언한다. 그러면, 생성된 코드는 rust module foobar에 들어가고,  나머지는 foobar_grpc,,,?
-
-- ```proto
-  package foobar;
-  ```
-
-- 
-
-
-
-- Service를 정의하고, rpc 함수를 정의한다.
-
-- ```protobuf
-  service FooBarService {
-      rpc record_cab_location(CabLocationRequest) returns (CabLocationRequest);
-      rpc get_cabs(GetCabsRequest) returns (GetCabsRequest);
-  
-  }
-  ```
-
-  
-
-- 관련된 message를 정의한다. 여기서 data 종류랑 개수를 명시한다.
-
-```protobuf
-message CabLocationRequest {
-    string name = 1;
-    Location location = 2;
-}
-
-message CabLocationResponse{
-    bool accepted = 1;
-}
-
-message GetCabsRequest {
-    Location location = 1;
-}
-
-message GetCabsResponse{
-    repeated Cab cabs = 1;
-}
-
-message Cab{
-    string name = 1;
-    Location location = 2;
-}
-
-message Location {
-    float latitude = 1;
-    float longitude = 2;
-}
-```
-
-- repeated?
 
 
 
@@ -294,248 +617,4 @@ fn main() {
 
 
 
-
-# 최근 버전들
-
-### ref
-
-https://medium.com/geekculture/quick-start-to-grpc-using-rust-c655785fc6f4
-
-
-
-```bash
-.
-├── Cargo.lock
-├── Cargo.toml
-├── build.rs
-├── proto
-│   └── hello.proto
-└── src
-    ├── client.rs
-    ├── lib.rs
-    └── server.rs
-```
-
-
-
-
-
-## tonic
-
-### Response
-
-```rust
-let response = HelloResponse { message: "Hello, World!".to_string() };
-        Ok(Response::new(response))
-```
-
-- 그냥 struct 만들고 new 하면된다.
-
-### Request
-
-```rust
-let req = req.into_inner(); // private 접근 가능해짐.
-let location = req.location.unwrap();
-```
-
-- message는 Some으로 감싸져 있음 (Option임)
-
-### struct
-
-```rust
-let location = Location{longitude: 70.1, latitude: 40.1};
-let request = Request::new(CabLocationRequest{name: "hi".to_string(), location: Some(location)});
-```
-
-- message는 Some으로 감싸줘야한다.
-
-### repeated
-
-```rust
-let one = Cab{name: "Limo".to_string(), location: Some(location.clone())};
-let two = Cab{name: "Merc".to_string(), location: Some(location.clone())};
-let vec = vec![one, two];
-let response = GetCabResponse { cabs: vec };
-```
-
-- repeated는 그냥 vec으로 주면 된다.
-
-
-
-
-### server.rs
-
-- tonic과
-- proto로 만든 녀석들을 가져온다.
-
-```rust
-use tonic::transport::Server;
-use tonic::{Request, Response, Status};
-
-use learning_grpc::hello; // proto
-use hello::hello_server::{HelloServer, Hello}; // service
-use hello::{HelloRequest, HelloResponse};
-```
-
-
-
-#### main
-
-```rust
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "0.0.0.0:50051".parse()?;
-
-    let hello_server = MyServer::default();
-    Server::builder()
-        .add_service(HelloServer::new(hello_server))
-        .serve(addr)
-        .await?;
-
-    Ok(())
-}
-```
-
-- macro를 이용해서 바로 runtime에 진입
-
-- builder()->Self
-
-- ```rust
-  pub fn add_service<S>(&mut self, svc: S) -> Router<S, Unimplemented, L>
-  where
-      S: Service<Request<Body>, Response = Response<BoxBody>> + NamedService + Clone + Send + 'static,
-      S::Future: Send + 'static,
-      S::Error: Into<Box<dyn Error + Send + Sync>> + Send,
-      L: Clone, 
-  // Create a router with the S typed service as the first service.
-  
-  //This will clone the Server builder and create a router that will route around different services.
-  
-  ```
-
-
-
-### impl
-
-```rust
-async fn hello_world(&self, _ : Request<HelloRequest>) -> Result<Response<HelloResponse>, Status> {
-        let response = HelloResponse { message: "Hello, World!".to_string() };
-        Ok(Response::new(response))
-    }
-```
-
-
-
-```rust
-use tonic::transport::Server;
-use tonic::{Request, Response, Status};
-
-use learning_grpc::hello;
-use hello::hello_server::{HelloServer, Hello};
-use hello::{HelloRequest, HelloResponse, CabLocationRequest, CabLocationResponse,
-    GetCabRequest, GetCabResponse, Cab, Location};
-
-
-#[derive(Default)]
-pub struct MyServer {}
-
-#[tonic::async_trait]
-impl Hello for MyServer {
-    async fn hello_world(&self, _ : Request<HelloRequest>) -> Result<Response<HelloResponse>, Status> {
-        let response = HelloResponse { message: "Hello, World!".to_string() };
-        Ok(Response::new(response))
-    }
-    async fn record_cab_location(&self, req : Request<CabLocationRequest>) -> Result<Response<CabLocationResponse>, Status> {
-        let response = CabLocationResponse { 
-                        accepted: true};
-        let req = req.into_inner();
-        let location = req.location.unwrap();
-        let latitude = location.latitude;
-        let longitude = location.longitude;
-        println!("Recorded cab {} at {}, {}", req.name, latitude, longitude);
-        Ok(Response::new(response))
-    }
-    async fn get_cabs(&self, _ : Request<GetCabRequest>) -> Result<Response<GetCabResponse>, Status> {
-        
-        let location = Location{longitude:70.1, latitude:40.1};
-        let one = Cab{name: "Limo".to_string(), location: Some(location.clone())};
-        let two = Cab{name: "Merc".to_string(), location: Some(location.clone())};
-        let vec = vec![one, two];
-        let response = GetCabResponse { cabs: vec };
-        Ok(Response::new(response))
-        // message GetCabResponse {
-        //     repeated Cab cabs = 1;
-        // }
-        
-        // message Cab {
-        //     string name = 1;
-        //     Location location = 2;
-        // }
-    }
-    
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "0.0.0.0:50051".parse()?;
-
-    let hello_server = MyServer::default();
-    Server::builder()
-        .add_service(HelloServer::new(hello_server))
-        .serve(addr)
-        .await?;
-
-    Ok(())
-}
-```
-
-
-
-
-
-### client
-
-```rust
-use tonic::transport::Endpoint;
-use tonic::Request;
-
-use learning_grpc::hello;
-use hello::hello_client::HelloClient;
-use hello::{HelloRequest, HelloResponse, CabLocationRequest, CabLocationResponse,
-    GetCabRequest, GetCabResponse, Cab, Location};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = Endpoint::from_static("https://127.0.0.1:50051");
-    
-    let mut client  = HelloClient::connect(addr).await?;
-    let request = Request::new(HelloRequest{});
-    let response = client.hello_world(request).await?;
-    println!("response: {}", response.into_inner().message);
-
-    let location = Location{longitude: 70.1, latitude: 40.1};
-    let request = Request::new(CabLocationRequest{name: "hi".to_string(), location: Some(location.clone())});
-    let response = client.record_cab_location(request).await?;
-    println!("response: {}", response.into_inner().accepted);
-
-    let request = Request::new(GetCabRequest{location: Some(location.clone())});
-    let response = client.get_cabs(request).await?;
-    println!("response: {:?}", response.into_inner().cabs);
-    Ok(())
-}
-```
-
-
-
-```bash
-response: Hello, World!
-response: true
-response: [Cab { name: "Limo", location: Some(Location { latitude: 40.1, longitude: 70.1 }) }, Cab { name: "Merc", location: Some(Location { latitude: 40.1, longitude: 70.1 }) }]
-```
-
-
-
-```bash
-Recorded cab hi at 40.1, 70.1
-```
 
