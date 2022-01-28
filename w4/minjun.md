@@ -98,6 +98,13 @@ tonic-build = "0.5"
 
 
 ### hello.proto
+
+### protobuf 설치
+
+```bash
+curl -Lo https://github.com/protocolbuffers/protobuf/releases/download/v3.19.3/protoc-3.19.3-linux-x86_64.zip
+```
+
 ### proto
 
 - 시작은 IDP spec을 명시한다.
@@ -106,7 +113,7 @@ tonic-build = "0.5"
   syntax = "proto3";
   ```
 
-- package를 선언한다. 그러면, 생성된 코드는 rust module Hello
+- package를 선언한다.
 
 - ```proto
   package Hello;
@@ -171,6 +178,10 @@ message Location {
 }
 
 ```
+
+
+
+- ![](https://miro.medium.com/max/271/1*nLSuqzpIfhYagfu97iFEAQ.png)
 
 
 
@@ -465,16 +476,6 @@ fn main(){
 ```
 
 - foobar.proto 에서 코드를 생성한다. 
-
-
-
-### protobuf 설치
-
-```bash
-curl -Lo https://github.com/protocolbuffers/protobuf/releases/download/v3.19.3/protoc-3.19.3-linux-x86_64.zip
-```
-
-
 
 
 
