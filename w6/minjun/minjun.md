@@ -96,7 +96,7 @@ impl Response {
 }
 ```
 
-
+- stream에 대한 대답은 그냥 Foo로 하기때문에 from도 그렇게 만듦.
 
 ```rust
 impl From<Request> for Response {
@@ -121,7 +121,7 @@ impl From<StreamRequest> for Response {
 ```
 
 
-
+- call function에서 input을 CollatzInput으로 바꾸고 match로 타입마다 다르게 처리
 
 
 ```rust
@@ -162,6 +162,8 @@ impl Service<CollatzInput> for CollatzService {
 
 ## server.rs
 
+- 이전과 같음.
+
 ```rust
 #[tokio::main]
 async fn main() {
@@ -179,6 +181,8 @@ async fn main() {
 
 
 ## Client.rs
+
+- 전달하는 방식은 이전과 같이 tx.call에 struct를 넣어준다.
 
 ```rust
 #[tokio::main]
