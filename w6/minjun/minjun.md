@@ -209,7 +209,7 @@ async fn main() {
 
 # The Larger tokio ecosystem
 
-![image-20220211191225424](./image.png)
+![tokio-ecosystem](./image-20220211191225424.png)
 
 
 
