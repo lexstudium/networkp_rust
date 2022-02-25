@@ -1,0 +1,64 @@
+<h1>Real Time Messaging</h1>
+<pre id="messages" style="height: 400px; overflow: scroll"></pre>
+<input type="text" id="messageBox" placeholder="Type your message here" onkeyup="if(window.event.keyCode==13){entKey()}" style="display: block; width: 100%; margin-bottom: 10px; padding: 10px;" />
+<button id="send" title="Send Message!" style="width: 100%; height: 30px;">Send Message</button>
+
+<script>
+  const sendBtn = document.querySelector('#send');
+  const messages = document.querySelector('#messages');
+  const messageBox = document.querySelector('#messageBox');
+  let ws;
+
+  sendBtn.onclick = function() {
+      if (!ws) {
+        alert("No WebSocket connection :(");
+        return ;
+      }
+
+      ws.send(messageBox.value);
+      showMessage(`  나 : ${messageBox.value}`);
+  }
+
+  function entKey(){
+    sendBtn.onclick();
+  }
+
+  function showMessage(message) {
+    messages.textContent += `\n\n${message}`;
+    messages.scrollTop = messages.scrollHeight;
+    messageBox.value = '';
+  }
+  // function getID(){
+  //     NAME = window.prompt("sometext","Type your name");
+  //   }
+
+  function main() {
+
+    
+    // let NAME;    
+
+    function init() {
+      if (ws) {
+        ws.onerror = ws.onopen = ws.onclose = null;
+        ws.close();
+      }
+
+      ws = new WebSocket('ws://localhost:12345');
+      ws.onopen = () => {
+        showMessage('  Connection opened!');
+        // getID();
+        showMessage(`  WelCome!`);
+        showMessage('  Type /s or /start to start random chat.');
+      }
+      ws.onmessage = ({ data }) => showMessage(`  낯선상대 : ${data}`);
+      ws.onclose = function() {
+        ws = null;
+      }
+    }
+
+    
+
+    init();
+  }
+  main();
+</script>
