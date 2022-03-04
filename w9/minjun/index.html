@@ -1,0 +1,169 @@
+<h1>Real Time Messaging</h1>
+<pre id="messages" style="height: 400px; overflow: scroll"></pre>
+<button id="start" title="Start Chat!" style="width: 100%; height: 30px;">S T A R T</button>
+<input type="text" id="messageBox" placeholder="Type your message here" onkeyup="if(window.event.keyCode==13){entKey()}" style="display: block; width: 100%; margin-bottom: 10px; padding: 10px;" />
+<button id="send" title="Send Message!" style="width: 100%; height: 30px;">Send Message</button>
+
+<script>
+  const sendBtn = document.querySelector('#send');
+  const startBtn = document.querySelector('#start');
+  const messages = document.querySelector('#messages');
+  const messageBox = document.querySelector('#messageBox');
+  const QUITMESSAGE = "$q$u$i$t!!^^";
+  const TIMEOUTMSG = "$T$I$M$E$O$U$T!!^^";
+  const STARTMSG = "$S$T$A$R$T!!^^";
+  let ws;
+  let isStarted = false;
+  const buttonTextArr = ["S T A R T", "Q U I T"];
+
+  // button 관련 함수들
+
+  //start, quit 버튼
+  function switch_state(){
+    isStarted = !isStarted;
+    let n = 0 + isStarted;
+    startBtn.innerHTML = buttonTextArr[n];
+  }
+
+  startBtn.onclick = function(){
+    if (isStarted){
+      send_quit_req();
+      end_chat();
+    }
+    else {
+      start_chat();
+    }
+  }
+
+  function close_websocket(){
+    ws.onerror = ws.onopen = ws.onclose = null;
+    ws.close();
+  }
+
+  function send_quit_req(){
+    ws.send(QUITMESSAGE);
+  }
+
+  function end_chat(){
+    // 상태 변경
+    switch_state();
+    // 종료상태 보여줌
+    showMessage("  Chat has ended.");
+    //WebSocket 종료
+    close_websocket();
+  }
+
+  function start_chat(){
+    //상태 변경
+    switch_state();
+    // 메세지창 clear
+    clearMessage();
+    showMessage("  Connecting WebSocket...");
+    // 채팅 시작
+    main();
+  }
+
+  function time_out_handler(){
+    switch_state();
+    showMessage("  TIME OUT. Try again.");
+    //close_websocket();
+  }
+
+  function start_handler(){
+    clearMessage();
+    showMessage("  Connection established. Have a nice chat!");
+  }
+
+
+  // 전송
+  sendBtn.onclick = function() {
+      if (!ws) {
+        alert("No WebSocket connection :(");
+        return ;
+      }
+
+      ws.send(messageBox.value);
+      sendMessage(`  나 : ${messageBox.value}`);
+  }
+
+  function entKey(){
+    sendBtn.onclick();
+  }
+
+  // message box 관리
+
+  function clearMessage(){
+    messages.textContent = '';
+    messages.scrollTop = messages.scrollHeight;
+  }
+  
+
+  function showMessage(message) {
+    messages.textContent += `\n\n${message}`;
+    messages.scrollTop = messages.scrollHeight;
+    
+  }
+
+  function sendMessage(message) {
+    showMessage(message);
+    messageBox.value = '';
+  }
+
+  function quit_ask_handler(data){
+    //alert(message);
+    //showMessage(data);
+    // 상대가 종료를 요청한 경우
+    if (data == QUITMESSAGE){
+      //showMessage("1도착")
+      end_chat();
+    }
+    else if (data == STARTMSG){
+      //showMessage("2도착")
+      //showMessage(data)
+      start_handler();
+    }
+    else if (data == TIMEOUTMSG){
+      //showMessage("3도착")
+      time_out_handler();
+    }
+    else{
+      //showMessage("도착")
+      showMessage(`  낯선상대 : ${data}`);
+    }
+  }
+
+  // main function
+  function main() {
+
+    
+    // let NAME;    
+    
+
+    function init() {
+      if (ws) {
+        ws.onerror = ws.onopen = ws.onclose = null;
+        ws.close();
+      }
+
+      ws = new WebSocket('ws://localhost:8080');
+      ws.onopen = () => {
+        
+        clearMessage();
+        showMessage('  Now Loading...');
+      }
+      ws.onmessage = ({ data }) => quit_ask_handler(data);
+      ws.onclose = function() {
+        ws = null;
+      }
+    }
+
+    
+
+    init();
+  }
+
+
+  //execution
+  showMessage('  Welcome! Press START button to start random chat.');
+
+</script>
