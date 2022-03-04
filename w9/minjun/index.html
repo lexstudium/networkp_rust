@@ -110,34 +110,23 @@
   }
 
   function quit_ask_handler(data){
-    //alert(message);
-    //showMessage(data);
     // 상대가 종료를 요청한 경우
     if (data == QUITMESSAGE){
-      //showMessage("1도착")
       end_chat();
     }
     else if (data == STARTMSG){
-      //showMessage("2도착")
-      //showMessage(data)
       start_handler();
     }
     else if (data == TIMEOUTMSG){
-      //showMessage("3도착")
       time_out_handler();
     }
     else{
-      //showMessage("도착")
       showMessage(`  낯선상대 : ${data}`);
     }
   }
 
   // main function
   function main() {
-
-    
-    // let NAME;    
-    
 
     function init() {
       if (ws) {
